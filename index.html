@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analizador de Audios WhatsApp</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 15px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .header { text-align: center; color: white; margin-bottom: 25px; padding-top: 10px; }
+        .header h1 { font-size: 28px; margin-bottom: 8px; }
+        .header p { font-size: 14px; opacity: 0.9; }
+        .card { background: white; border-radius: 20px; padding: 25px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); margin-bottom: 20px; }
+        .section-title { font-size: 18px; color: #333; margin-bottom: 15px; font-weight: 600; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; color: #666; font-size: 14px; margin-bottom: 8px; font-weight: 500; }
+        .input-group input[type="password"], .input-group input[type="text"] { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 14px; }
+        .api-status { padding: 10px 15px; border-radius: 8px; font-size: 13px; margin-top: 10px; display: none; }
+        .api-status.success { background: #d4edda; color: #155724; display: block; }
+        .file-input-wrapper { margin-bottom: 20px; }
+        .file-input-label { display: block; width: 100%; padding: 50px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-align: center; border-radius: 15px; cursor: pointer; transition: all 0.3s; font-size: 18px; font-weight: 600; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); }
+        .file-input-label .icon { font-size: 48px; display: block; margin-bottom: 15px; }
+        #fileInput { display: none; }
+        .file-info { display: none; background: #fff3cd; padding: 15px; border-radius: 10px; margin-bottom: 15px; border-left: 4px solid #ffc107; }
+        .file-info.show { display: block; }
+        .folder-selection { display: none; margin-bottom: 20px; }
+        .folder-selection.show { display: block; }
+        .folder-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .folder-btn { padding: 20px 15px; border: 3px solid #e0e0e0; border-radius: 15px; background: white; cursor: pointer; transition: all 0.3s; font-size: 18px; font-weight: 700; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .folder-btn.selected { border-color: #667eea; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .btn { width: 100%; padding: 18px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 15px; font-size: 18px; font-weight: 700; cursor: pointer; transition: all 0.3s; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .loading { display: none; text-align: center; padding: 40px 20px; }
+        .loading.show { display: block; }
+        .spinner { border: 5px solid #f3f3f3; border-top: 5px solid #667eea; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .results { display: none; }
+        .results.show { display: block; }
+        .result-section { margin-bottom: 25px; }
+        .result-section h3 { color: #667eea; margin-bottom: 15px; font-size: 20px; }
+        .summary-box { background: #e8f5e9; padding: 18px; border-radius: 12px; border-left: 5px solid #4caf50; line-height: 1.7; color: #1b5e20; }
+        .highlight-item { background: #fff8e1; padding: 15px; border-radius: 10px; margin-bottom: 12px; border-left: 5px solid #ffc107; }
+        .task-item { background: #e3f2fd; padding: 15px; border-radius: 10px; margin-bottom: 12px; border-left: 5px solid #2196f3; display: flex; gap: 12px; }
+        .transcription { background: #f5f5f5; padding: 18px; border-radius: 12px; max-height: 250px; overflow-y: auto; line-height: 1.7; }
+        .folder-tag { display: inline-block; padding: 8px 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 25px; font-size: 14px; font-weight: 700; margin-bottom: 20px; }
+        .error { display: none; background: #f8d7da; color: #721c24; padding: 15px; border-radius: 10px; margin-top: 15px; }
+        .error.show { display: block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📱 Analizador de Audios</h1>
+            <p>WhatsApp Voice Notes Pro</p>
+        </div>
+        <div class="card">
+            <h3 class="section-title">⚙️ API Key</h3>
+            <div class="input-group">
+                <label for="apiKey">Clave de Anthropic</label>
+                <input type="password" id="apiKey" placeholder="sk-ant-api03-...">
+            </div>
+            <button class="btn" id="saveApiBtn">Guardar</button>
+            <div class="api-status" id="apiStatus"></div>
+        </div>
+        <div class="card" id="uploadCard" style="display: none;">
+            <h3 class="section-title">🎤 Subir Audio</h3>
+            <div class="file-input-wrapper">
+                <label for="fileInput" class="file-input-label">
+                    <span class="icon">🎤</span>
+                    <span>TOCA PARA SELECCIONAR</span>
+                </label>
+                <input type="file" id="fileInput" accept="audio/*">
+            </div>
+            <div class="file-info" id="fileInfo">
+                <p id="fileName"></p>
+            </div>
+            <div class="folder-selection" id="folderSelection">
+                <label class="section-title">📁 Carpeta:</label>
+                <div class="folder-buttons">
+                    <button class="folder-btn" data-folder="blush"><span>💄</span><span>Blush</span></button>
+                    <button class="folder-btn" data-folder="trabajo"><span>💼</span><span>Trabajo</span></button>
+                </div>
+            </div>
+            <button class="btn" id="analyzeBtn" disabled>ANALIZAR</button>
+            <div class="error" id="errorMsg"></div>
+        </div>
+        <div class="card loading" id="loading">
+            <div class="spinner"></div>
+            <p>⚡ Analizando...</p>
+        </div>
+        <div class="card results" id="results">
+            <div class="folder-tag" id="folderTag"></div>
+            <div class="result-section">
+                <h3>📝 Resumen</h3>
+                <div class="summary-box" id="summary"></div>
+            </div>
+            <div class="result-section">
+                <h3>⭐ Puntos Importantes</h3>
+                <div id="highlights"></div>
+            </div>
+            <div class="result-section">
+                <h3>✅ Tareas</h3>
+                <div id="tasks"></div>
+            </div>
+            <div class="result-section">
+                <h3>📄 Transcripción</h3>
+                <div class="transcription" id="transcription"></div>
+            </div>
+            <button class="btn" onclick="location.reload()">Nuevo Audio</button>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@0.30.1/dist/index.min.js"></script>
+    <script>
+        let selectedFile = null;
+        let selectedFolder = null;
+        let apiKey = null;
+        const apiKeyInput = document.getElementById('apiKey');
+        const saveApiBtn = document.getElementById('saveApiBtn');
+        const uploadCard = document.getElementById('uploadCard');
+        const fileInput = document.getElementById('fileInput');
+        const folderSelection = document.getElementById('folderSelection');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        window.addEventListener('load', () => {
+            const savedKey = localStorage.getItem('anthropic_api_key');
+            if (savedKey) {
+                apiKeyInput.value = savedKey;
+                apiKey = savedKey;
+                document.getElementById('apiStatus').className = 'api-status success';
+                document.getElementById('apiStatus').textContent = '✅ API Key guardada';
+                uploadCard.style.display = 'block';
+            }
+        });
+        saveApiBtn.addEventListener('click', () => {
+            const key = apiKeyInput.value.trim();
+            if (!key || !key.startsWith('sk-ant-')) {
+                alert('API key inválida');
+                return;
+            }
+            localStorage.setItem('anthropic_api_key', key);
+            apiKey = key;
+            document.getElementById('apiStatus').className = 'api-status success';
+            document.getElementById('apiStatus').textContent = '✅ Guardada';
+            uploadCard.style.display = 'block';
+        });
+        document.querySelectorAll('.folder-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.folder-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                selectedFolder = btn.dataset.folder;
+                analyzeBtn.disabled = !selectedFile || !selectedFolder;
+            });
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                selectedFile = e.target.files[0];
+                const sizeMB = (selectedFile.size / 1024 / 1024).toFixed(2);
+                document.getElementById('fileName').textContent = `📎 ${selectedFile.name} (${sizeMB} MB)`;
+                document.getElementById('fileInfo').classList.add('show');
+                folderSelection.classList.add('show');
+                analyzeBtn.disabled = !selectedFile || !selectedFolder;
+            }
+        });
+        analyzeBtn.addEventListener('click', async () => {
+            if (!selectedFile || !selectedFolder || !apiKey) return;
+            uploadCard.style.display = 'none';
+            loading.classList.add('show');
+            try {
+                const base64 = await fileToBase64(selectedFile);
+                let mimeType = selectedFile.type;
+                if (!mimeType) {
+                    const ext = selectedFile.name.split('.').pop().toLowerCase();
+                    const types = {'opus': 'audio/ogg','mp3': 'audio/mpeg','m4a': 'audio/mp4','ogg': 'audio/ogg','wav': 'audio/wav'};
+                    mimeType = types[ext] || 'audio/ogg';
+                }
+                const anthropic = new Anthropic.default({ apiKey: apiKey, dangerouslyAllowBrowser: true });
+                const message = await anthropic.messages.create({
+                    model: 'claude-sonnet-4-5-20250929',
+                    max_tokens: 4096,
+                    messages: [{role: 'user',content: [{type: 'document',source: {type: 'base64',media_type: mimeType,data: base64}},{type: 'text',text: `Analiza este audio de WhatsApp y proporciona:\n\n1. RESUMEN: Un resumen conciso de 2-3 oraciones sobre el contenido principal.\n\n2. PUNTOS IMPORTANTES: Lista de 3-5 puntos clave mencionados.\n\n3. TAREAS: Lista de tareas o acciones mencionadas. Si no hay, indica "No se identificaron tareas".\n\n4. TRANSCRIPCIÓN: La transcripción completa del audio.\n\nFormato:\n[RESUMEN]\n(resumen aquí)\n\n[PUNTOS IMPORTANTES]\n- Punto 1\n- Punto 2\n\n[TAREAS]\n- Tarea 1\n\n[TRANSCRIPCIÓN]\n(transcripción completa)`}]}]
+                });
+                const text = message.content[0].text;
+                const analysis = parseResponse(text);
+                const saved = JSON.parse(localStorage.getItem('saved_analyses') || '{}');
+                if (!saved[selectedFolder]) saved[selectedFolder] = [];
+                saved[selectedFolder].unshift({date: new Date().toISOString(),fileName: selectedFile.name,...analysis});
+                saved[selectedFolder] = saved[selectedFolder].slice(0, 50);
+                localStorage.setItem('saved_analyses', JSON.stringify(saved));
+                displayResults(analysis, selectedFolder);
+            } catch (error) {
+                alert('Error: ' + error.message);
+                loading.classList.remove('show');
+                uploadCard.style.display = 'block';
+            }
+        });
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+        function parseResponse(text) {
+            const sections = {summary: '',highlights: [],tasks: [],transcription: ''};
+            const summaryMatch = text.match(/\[RESUMEN\]([\s\S]*?)(?=\[PUNTOS IMPORTANTES\])/);
+            if (summaryMatch) sections.summary = summaryMatch[1].trim();
+            const highlightsMatch = text.match(/\[PUNTOS IMPORTANTES\]([\s\S]*?)(?=\[TAREAS\])/);
+            if (highlightsMatch) {
+                sections.highlights = highlightsMatch[1].split('\n').filter(line => line.trim().startsWith('-')).map(line => line.replace(/^-\s*/, '').trim());
+            }
+            const tasksMatch = text.match(/\[TAREAS\]([\s\S]*?)(?=\[TRANSCRIPCIÓN\])/);
+            if (tasksMatch) {
+                sections.tasks = tasksMatch[1].split('\n').filter(line => line.trim().startsWith('-')).map(line => line.replace(/^-\s*/, '').trim());
+            }
+            const transcriptionMatch = text.match(/\[TRANSCRIPCIÓN\]([\s\S]*?)$/);
+            if (transcriptionMatch) sections.transcription = transcriptionMatch[1].trim();
+            return sections;
+        }
+        function displayResults(analysis, folder) {
+            loading.classList.remove('show');
+            document.getElementById('folderTag').textContent = folder === 'blush' ? '💄 Blush' : '💼 Trabajo';
+            document.getElementById('summary').textContent = analysis.summary || 'Sin resumen';
+            const highlightsDiv = document.getElementById('highlights');
+            highlightsDiv.innerHTML = analysis.highlights.length > 0 ? analysis.highlights.map(h => `<div class="highlight-item">${h}</div>`).join('') : '<div class="highlight-item">Sin puntos importantes</div>';
+            const tasksDiv = document.getElementById('tasks');
+            tasksDiv.innerHTML = analysis.tasks.length > 0 ? analysis.tasks.map(t => `<div class="task-item"><span>✓</span><span>${t}</span></div>`).join('') : '<div class="task-item"><span>Sin tareas</span></div>';
+            document.getElementById('transcription').textContent = analysis.transcription || 'Sin transcripción';
+            results.classList.add('show');
+        }
+    </script>
+</body>
+</html>
